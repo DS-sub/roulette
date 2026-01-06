@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>룰렛 돌리기</title>
+  <style>
+    /* 1. 기본 레이아웃 및 배경 */
+    body {
+      font-family: 'Pretendard', sans-serif;
+      background-color: #1a1a1a;
+      color: white;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      overflow: hidden;
+    }
+
+    .controls {
+      margin-bottom: 30px;
+      text-align: center;
+    }
+
+    p {
+      color: #888;
+      font-size: 0.9rem;
+      margin-bottom: 10px;
+    }
+
+    input {
+      padding: 12px 20px;
+      width: 350px;
+      border-radius: 30px;
+      border: 2px solid #444;
+      background: #222;
+      color: white;
+      font-size: 16px;
+      text-align: center;
+      outline: none;
+      transition: border 0.3s;
+    }
+
+    input:focus {
+      border-color: #ff4757;
+    }
+
+    /* 2. 룰렛 컨테이너 및 디자인 */
+    .roulette-container {
+      position: relative;
+      width: 75vmin;
+      height: 75vmin;
+      box-shadow: 0 0 50px rgba(0, 0, 0, 0.5);
+      border-radius: 50%;
+    }
+
+    canvas {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      border: 10px solid #fff;
+      /* [복구] 시간을 다시 4초로 변경 */
+      transition: transform 4s cubic-bezier(0.1, 0, 0.2, 1);
+    }
+
+    /* 화살표 (12시 방향 고정) */
+    .arrow {
+      position: absolute;
+      top: -25px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 0;
+      height: 0;
+      border-left: 20px solid transparent;
+      border-right: 20px solid transparent;
+      border-top: 40px solid #ff4757;
+      z-index: 10;
+      filter: drop-shadow(0 5px 5px rgba(0, 0, 0, 0.5));
+    }
+
+    /* 중앙 버튼 */
+    .center-btn {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 15vmin;
+      height: 15vmin;
+      border-radius: 50%;
+      background: #ff4757;
+      color: white;
+      border: 5px solid white;
+      cursor: pointer;
+      font-weight: bold;
+      font-size: 1.2rem;
+      z-index: 15;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+      transition: 0.2s;
+    }
+
+    .center-btn:active {
+      transform: translate(-50%, -50%) scale(0.9);
+    }
+
+    .center-btn:disabled {
+      background: #555;
+      cursor: not-allowed;
+    }
+
+    /* 3. 결과 모달 */
+    .modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.95);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 100;
+    }
+
+    .modal.show {
+      display: flex;
+    }
+
+    .result-content {
+      text-align: center;
+      animation: explosion 0.6s cubic-bezier(0.17, 0.89, 0.32, 1.49);
+    }
+
+    @keyframes explosion {
+      0% {
+        transform: scale(0);
+        opacity: 0;
+      }
+
+      70% {
+        transform: scale(1.2);
+        opacity: 1;
+      }
+
+      100% {
+        transform: scale(1);
+      }
+    }
+
+    .result-text {
+      font-size: 5rem;
+      color: #ff4757;
+      font-weight: 900;
+      margin: 30px 0;
+      text-shadow: 0 0 20px rgba(255, 71, 87, 0.5);
+    }
+
+    button.close-btn {
+      padding: 12px 30px;
+      cursor: pointer;
+      background: transparent;
+      color: white;
+      border: 2px solid white;
+      border-radius: 30px;
+      font-size: 1rem;
+      transition: 0.3s;
+    }
+
+    button.close-btn:hover {
+      background: white;
+      color: black;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="controls">
+    <p>항목을 쉼표(,)로 구분해서 입력하세요</p>
+    <input type="text" id="itemsInput" value="삼겹살, 치킨, 피자, 초밥, 보쌈, 햄버거" oninput="draw()">
+  </div>
+
+  <div class="roulette-container">
+    <div class="arrow"></div>
+    <canvas id="canvas" width="600" height="600"></canvas>
+    <button class="center-btn" id="spinBtn" onclick="spin()">GO!</button>
+  </div>
+
+  <audio id="audio_roll" preload="auto">
+    <source src="https://assets.mixkit.co/active_storage/sfx/2644/2644-preview.mp3" type="audio/mp3">
+  </audio>
+
+  <audio id="audio_win" preload="auto">
+    <source src="https://assets.mixkit.co/active_storage/sfx/2017/2017-preview.mp3" type="audio/mp3">
+  </audio>
+
+  <div class="modal" id="modal">
+    <div class="result-content">
+      <h2 style="font-size: 2rem;">🎡 두구두구… 결과는!</h2>
+      <div class="result-text" id="resultText"></div>
+      <button class="close-btn" onclick="closeModal()">한 번 더 하기</button>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const input = document.getElementById('itemsInput');
+    const roll = document.getElementById('audio_roll');
+    const win = document.getElementById('audio_win');
+    const spinBtn = document.getElementById('spinBtn');
+
+    let items = [];
+    let currentRotation = 0;
+
+    function draw() {
+      items = input.value.split(',').map(v => v.trim()).filter(v => v);
+      if (!items.length) return;
+
+      const arc = (Math.PI * 2) / items.length;
+      ctx.clearRect(0, 0, 600, 600);
+
+      items.forEach((item, i) => {
+        ctx.beginPath();
+        // 각 칸마다 다른 색상 (HSL)
+        ctx.fillStyle = `hsl(${i * (360 / items.length)}, 70%, 55%)`;
+        ctx.moveTo(300, 300);
+        ctx.arc(300, 300, 300, i * arc, (i + 1) * arc);
+        ctx.fill();
+        ctx.strokeStyle = "#fff";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // 텍스트 추가
+        ctx.save();
+        ctx.translate(300, 300);
+        ctx.rotate(i * arc + arc / 2);
+        ctx.textAlign = "right";
+        ctx.fillStyle = "white";
+        ctx.font = "bold 24px sans-serif";
+        ctx.fillText(item, 260, 10);
+        ctx.restore();
+      });
+    }
+
+    function spin() {
+      if (!items.length) return;
+      spinBtn.disabled = true;
+
+      // 배경음악 재생
+      roll.currentTime = 0;
+      roll.play().catch(() => { });
+
+      // [수정] 랜덤 로직 강화: 회전수(바퀴 수) 자체를 랜덤으로 변경
+      // 기존: 고정 8바퀴 + 랜덤 각도 -> 결과가 비슷하게 나옴
+      // 변경: 랜덤 5~15바퀴 + 랜덤 각도 -> 어디서 멈출지 예측 불가
+      const randomSpins = Math.floor(Math.random() * 10) + 5; // 5바퀴에서 15바퀴 사이 랜덤
+      const randomDegree = Math.floor(Math.random() * 360);
+      const rotateTo = currentRotation + (360 * randomSpins) + randomDegree;
+
+      currentRotation = rotateTo;
+      canvas.style.transform = `rotate(-${rotateTo}deg)`;
+
+      // [복구] 4초 후 결과 도출
+      setTimeout(() => {
+        roll.pause();
+        win.currentTime = 0;
+        win.play().catch(() => { });
+
+        // 결과 인덱스 계산 (화살표 위치 보정)
+        const arc = 360 / items.length;
+        const resultIndex = Math.floor(((rotateTo + 270) % 360) / arc);
+
+        document.getElementById('resultText').innerText = items[resultIndex];
+        document.getElementById('modal').classList.add('show');
+        spinBtn.disabled = false;
+      }, 4000);
+    }
+
+    function closeModal() {
+      document.getElementById('modal').classList.remove('show');
+    }
+
+    // 초기 실행
+    draw();
+  </script>
+</body>
+
+</html>

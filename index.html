@@ -62,7 +62,6 @@
       height: 100%;
       border-radius: 50%;
       border: 10px solid #fff;
-      /* [복구] 시간을 다시 4초로 변경 */
       transition: transform 4s cubic-bezier(0.1, 0, 0.2, 1);
     }
 
@@ -156,22 +155,6 @@
       margin: 30px 0;
       text-shadow: 0 0 20px rgba(255, 71, 87, 0.5);
     }
-
-    button.close-btn {
-      padding: 12px 30px;
-      cursor: pointer;
-      background: transparent;
-      color: white;
-      border: 2px solid white;
-      border-radius: 30px;
-      font-size: 1rem;
-      transition: 0.3s;
-    }
-
-    button.close-btn:hover {
-      background: white;
-      color: black;
-    }
   </style>
 </head>
 
@@ -200,7 +183,6 @@
     <div class="result-content">
       <h2 style="font-size: 2rem;">🎡 두구두구… 결과는!</h2>
       <div class="result-text" id="resultText"></div>
-      <button class="close-btn" onclick="closeModal()">한 번 더 하기</button>
     </div>
   </div>
 
@@ -224,7 +206,6 @@
 
       items.forEach((item, i) => {
         ctx.beginPath();
-        // 각 칸마다 다른 색상 (HSL)
         ctx.fillStyle = `hsl(${i * (360 / items.length)}, 70%, 55%)`;
         ctx.moveTo(300, 300);
         ctx.arc(300, 300, 300, i * arc, (i + 1) * arc);
@@ -233,7 +214,6 @@
         ctx.lineWidth = 2;
         ctx.stroke();
 
-        // 텍스트 추가
         ctx.save();
         ctx.translate(300, 300);
         ctx.rotate(i * arc + arc / 2);
@@ -249,38 +229,38 @@
       if (!items.length) return;
       spinBtn.disabled = true;
 
-      // 배경음악 재생
       roll.currentTime = 0;
       roll.play().catch(() => { });
 
-      // [수정] 랜덤 로직 강화: 회전수(바퀴 수) 자체를 랜덤으로 변경
-      // 기존: 고정 8바퀴 + 랜덤 각도 -> 결과가 비슷하게 나옴
-      // 변경: 랜덤 5~15바퀴 + 랜덤 각도 -> 어디서 멈출지 예측 불가
-      const randomSpins = Math.floor(Math.random() * 10) + 5; // 5바퀴에서 15바퀴 사이 랜덤
+      const randomSpins = Math.floor(Math.random() * 10) + 5; 
       const randomDegree = Math.floor(Math.random() * 360);
       const rotateTo = currentRotation + (360 * randomSpins) + randomDegree;
 
       currentRotation = rotateTo;
       canvas.style.transform = `rotate(-${rotateTo}deg)`;
 
-      // [복구] 4초 후 결과 도출
       setTimeout(() => {
         roll.pause();
         win.currentTime = 0;
         win.play().catch(() => { });
 
-        // 결과 인덱스 계산 (화살표 위치 보정)
         const arc = 360 / items.length;
         const resultIndex = Math.floor(((rotateTo + 270) % 360) / arc);
 
         document.getElementById('resultText').innerText = items[resultIndex];
         document.getElementById('modal').classList.add('show');
-        spinBtn.disabled = false;
+        
+        // 결과 모달이 뜨고 3초 뒤에 자동으로 닫기
+        setTimeout(() => {
+          closeModal();
+        }, 3000);
+
       }, 4000);
     }
 
     function closeModal() {
       document.getElementById('modal').classList.remove('show');
+      spinBtn.disabled = false; // 모달이 닫히면 다시 돌리기 버튼 활성화
     }
 
     // 초기 실행
